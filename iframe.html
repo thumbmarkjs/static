@@ -73,6 +73,39 @@
         .copy-btn.copied {
             background: #6c757d;
         }
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .comparison-table th,
+        .comparison-table td {
+            padding: 15px;
+            text-align: left;
+            border: 1px solid #dee2e6;
+        }
+        .comparison-table th {
+            background: #007bff;
+            color: white;
+            font-weight: bold;
+        }
+        .comparison-table td {
+            background: #f8f9fa;
+        }
+        .comparison-table .result {
+            margin: 5px 0;
+        }
+        .match-indicator {
+            font-size: 24px;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+        .match {
+            color: #28a745;
+        }
+        .no-match {
+            color: #dc3545;
+        }
     </style>
 </head>
 <body>
@@ -80,34 +113,47 @@
         <h1>ThumbmarkJS IFrame Context Test</h1>
 
         <div class="section">
-            <h2>Main Window Results</h2>
-            <div class="label">
-                Without API Key:
-                <button class="copy-btn" onclick="copyComponents('mainWithoutKey')">Copy Components JSON</button>
-            </div>
-            <div class="result" id="mainWithoutKey"><span class="loading">Loading...</span></div>
-
-            <div class="label">
-                With API Key:
-                <button class="copy-btn" onclick="copyComponents('mainWithKey')">Copy Components JSON</button>
-            </div>
-            <div class="result" id="mainWithKey"><span class="loading">Loading...</span></div>
+            <h2>Thumbmark Comparison: Main Window vs IFrame</h2>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>Main Window</th>
+                        <th>IFrame</th>
+                        <th>Match</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Without API Key</strong></td>
+                        <td>
+                            <div class="result" id="mainWithoutKey"><span class="loading">Loading...</span></div>
+                            <button class="copy-btn" onclick="copyComponents('mainWithoutKey')">Copy Components JSON</button>
+                        </td>
+                        <td>
+                            <div class="result" id="iframeWithoutKey"><span class="loading">Loading...</span></div>
+                            <button class="copy-btn" onclick="copyComponents('iframeWithoutKey')">Copy Components JSON</button>
+                        </td>
+                        <td id="matchWithoutKey" style="text-align: center;"></td>
+                    </tr>
+                    <tr>
+                        <td><strong>With API Key</strong></td>
+                        <td>
+                            <div class="result" id="mainWithKey"><span class="loading">Loading...</span></div>
+                            <button class="copy-btn" onclick="copyComponents('mainWithKey')">Copy Components JSON</button>
+                        </td>
+                        <td>
+                            <div class="result" id="iframeWithKey"><span class="loading">Loading...</span></div>
+                            <button class="copy-btn" onclick="copyComponents('iframeWithKey')">Copy Components JSON</button>
+                        </td>
+                        <td id="matchWithKey" style="text-align: center;"></td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
 
         <div class="section">
-            <h2>IFrame Results</h2>
-            <div class="label">
-                Without API Key:
-                <button class="copy-btn" onclick="copyComponents('iframeWithoutKey')">Copy Components JSON</button>
-            </div>
-            <div class="result" id="iframeWithoutKey"><span class="loading">Loading...</span></div>
-
-            <div class="label">
-                With API Key:
-                <button class="copy-btn" onclick="copyComponents('iframeWithKey')">Copy Components JSON</button>
-            </div>
-            <div class="result" id="iframeWithKey"><span class="loading">Loading...</span></div>
-
+            <h2>IFrame (Live View)</h2>
             <div class="iframe-container">
                 <iframe id="testIframe" src="about:blank"></iframe>
             </div>
@@ -134,14 +180,30 @@
                 const resultWithoutKey = await thumbmarkWithoutKey.get();
                 results.mainWithoutKey = resultWithoutKey;
                 document.getElementById('mainWithoutKey').textContent = resultWithoutKey.thumbmark;
+                checkMatch('WithoutKey');
 
                 // With API key
                 const thumbmarkWithKey = new ThumbmarkJS.Thumbmark({ api_key: API_KEY });
                 const resultWithKey = await thumbmarkWithKey.get();
                 results.mainWithKey = resultWithKey;
                 document.getElementById('mainWithKey').textContent = resultWithKey.thumbmark;
+                checkMatch('WithKey');
             } catch (error) {
                 console.error('Main window error:', error);
+            }
+        }
+
+        // Check if thumbmarks match and update indicator
+        function checkMatch(suffix) {
+            const mainResult = results['main' + suffix];
+            const iframeResult = results['iframe' + suffix];
+
+            if (mainResult && iframeResult) {
+                const match = mainResult.thumbmark === iframeResult.thumbmark;
+                const indicator = document.getElementById('match' + suffix);
+                indicator.innerHTML = match
+                    ? '<span class="match-indicator match">&#x2713;</span>'
+                    : '<span class="match-indicator no-match">&#x2717;</span>';
             }
         }
 
@@ -213,6 +275,8 @@
                 results.iframeWithKey = event.data.resultWithKey;
                 document.getElementById('iframeWithoutKey').textContent = event.data.withoutKey;
                 document.getElementById('iframeWithKey').textContent = event.data.withKey;
+                checkMatch('WithoutKey');
+                checkMatch('WithKey');
             }
         });
 

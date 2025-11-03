@@ -32,7 +32,7 @@
                 const API_KEY = '6c5e18e199f82882f0a9539a5ff5df8b';
 
                 // Without API key
-                const thumbmarkWithoutKey = new ThumbmarkJS.Thumbmark();
+                const thumbmarkWithoutKey = new ThumbmarkJS.Thumbmark({});
                 const resultWithoutKey = await thumbmarkWithoutKey.get();
                 document.getElementById('withoutKey').textContent = resultWithoutKey.thumbmark;
 
