@@ -3,246 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hello World - Experimental</title>
+    <title>Static Pages</title>
     <style>
         body {
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-        .container {
-            text-align: center;
-            color: white;
-            padding: 2rem;
+            font-family: Arial, sans-serif;
             max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
         }
         h1 {
-            font-size: 3rem;
-            margin: 0;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            color: #333;
         }
-        p {
-            font-size: 1.2rem;
-            margin-top: 1rem;
-            opacity: 0.9;
+        ul {
+            list-style: none;
+            padding: 0;
         }
-        .controls {
-            margin-top: 1rem;
-            display: flex;
-            gap: 1rem;
-            justify-content: center;
+        li {
+            margin: 10px 0;
         }
-        button {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            padding: 0.5rem 1.5rem;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 1rem;
-            font-weight: bold;
-            transition: all 0.3s;
+        a {
+            color: #0066cc;
+            text-decoration: none;
+            font-size: 18px;
         }
-        button:hover {
-            background: rgba(255, 255, 255, 0.3);
-            border-color: rgba(255, 255, 255, 0.5);
-        }
-        button:active {
-            transform: scale(0.95);
-        }
-        #components {
-            margin-top: 2rem;
-            background: rgba(255, 255, 255, 0.1);
-            padding: 1.5rem;
-            border-radius: 10px;
-            backdrop-filter: blur(10px);
-            overflow-x: auto;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-family: 'Courier New', monospace;
-            font-size: 0.9rem;
-        }
-        th {
-            background: rgba(255, 255, 255, 0.2);
-            padding: 0.75rem;
-            text-align: left;
-            font-weight: bold;
-            color: #ffd700;
-            border-bottom: 2px solid rgba(255, 255, 255, 0.3);
-        }
-        td {
-            padding: 0.75rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            word-break: break-all;
-        }
-        tr:hover {
-            background: rgba(255, 255, 255, 0.05);
-        }
-        .status {
-            text-align: center;
-            font-size: 1.2rem;
-        }
-        .match {
-            color: #00ff00;
-        }
-        .no-match {
-            color: #ff0000;
-        }
-        .loading {
-            font-style: italic;
-            opacity: 0.7;
+        a:hover {
+            text-decoration: underline;
         }
     </style>
-    <script src="thumbmark.umd.js"></script>
 </head>
 <body>
-    <div class="container">
-        <h1>Thumbmark Experimental</h1>
-        <p>Experimental Components Hash Values</p>
-        <div class="controls">
-            <button id="copyBtn">Copy to Clipboard</button>
-            <button id="pasteBtn">Paste from Clipboard</button>
-        </div>
-        <div id="components">
-            <div class="loading">Loading experimental components...</div>
-        </div>
-    </div>
-
-    <script>
-        // Initialize Thumbmark
-        const thumbmark = new ThumbmarkJS.Thumbmark({experimental: true});
-
-        // Get the experimental components
-        thumbmark.get().then(result => {
-            const componentsDiv = document.getElementById('components');
-            componentsDiv.innerHTML = '';
-
-            // Get previous values from sessionStorage
-            const previousData = sessionStorage.getItem('thumbmark_experimental');
-            const previous = previousData ? JSON.parse(previousData) : null;
-
-            // Get clipboard values from sessionStorage
-            const clipboardData = sessionStorage.getItem('thumbmark_clipboard');
-            const clipboard = clipboardData ? JSON.parse(clipboardData) : null;
-
-            // Display as a comparison table
-            if (result.experimental) {
-                // Create table
-                const table = document.createElement('table');
-
-                // Create header
-                const thead = document.createElement('thead');
-                thead.innerHTML = `
-                    <tr>
-                        <th>Component</th>
-                        <th>Current Hash</th>
-                        <th>Previous Hash</th>
-                        <th>Match</th>
-                        <th>Clipboard Hash</th>
-                        <th>Match</th>
-                    </tr>
-                `;
-                table.appendChild(thead);
-
-                // Create body
-                const tbody = document.createElement('tbody');
-                for (const [componentName, componentData] of Object.entries(result.experimental)) {
-                    const currentHash = componentData.hash;
-                    const previousHash = previous && previous[componentName] ? previous[componentName].hash : 'N/A';
-                    const clipboardHash = clipboard && clipboard[componentName] ? clipboard[componentName].hash : 'N/A';
-
-                    // Compare with previous
-                    let prevStatusIcon = '';
-                    let prevStatusClass = '';
-                    if (previousHash === 'N/A') {
-                        prevStatusIcon = '-';
-                        prevStatusClass = '';
-                    } else if (currentHash === previousHash) {
-                        prevStatusIcon = '✓';
-                        prevStatusClass = 'match';
-                    } else {
-                        prevStatusIcon = '✗';
-                        prevStatusClass = 'no-match';
-                    }
-
-                    // Compare with clipboard
-                    let clipStatusIcon = '';
-                    let clipStatusClass = '';
-                    if (clipboardHash === 'N/A') {
-                        clipStatusIcon = '-';
-                        clipStatusClass = '';
-                    } else if (currentHash === clipboardHash) {
-                        clipStatusIcon = '✓';
-                        clipStatusClass = 'match';
-                    } else {
-                        clipStatusIcon = '✗';
-                        clipStatusClass = 'no-match';
-                    }
-
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td><strong>${componentName}</strong></td>
-                        <td>${currentHash}</td>
-                        <td>${previousHash}</td>
-                        <td class="status ${prevStatusClass}">${prevStatusIcon}</td>
-                        <td>${clipboardHash}</td>
-                        <td class="status ${clipStatusClass}">${clipStatusIcon}</td>
-                    `;
-                    tbody.appendChild(row);
-                }
-                table.appendChild(tbody);
-
-                componentsDiv.appendChild(table);
-
-                // Store current values in sessionStorage for next page load
-                sessionStorage.setItem('thumbmark_experimental', JSON.stringify(result.experimental));
-
-                // Store current data for clipboard functionality
-                window.currentExperimentalData = result.experimental;
-            } else {
-                componentsDiv.innerHTML = '<div class="loading">No experimental components found</div>';
-            }
-        }).catch(error => {
-            const componentsDiv = document.getElementById('components');
-            componentsDiv.innerHTML = `<div class="loading">Error: ${error.message}</div>`;
-        });
-
-        // Copy to clipboard functionality
-        document.getElementById('copyBtn').addEventListener('click', async () => {
-            if (window.currentExperimentalData) {
-                try {
-                    await navigator.clipboard.writeText(JSON.stringify(window.currentExperimentalData));
-                    alert('Experimental data copied to clipboard!');
-                } catch (err) {
-                    alert('Failed to copy to clipboard: ' + err.message);
-                }
-            } else {
-                alert('No data available to copy yet. Please wait for the page to load.');
-            }
-        });
-
-        // Paste from clipboard functionality
-        document.getElementById('pasteBtn').addEventListener('click', async () => {
-            try {
-                const text = await navigator.clipboard.readText();
-                const pastedData = JSON.parse(text);
-
-                // Store in sessionStorage
-                sessionStorage.setItem('thumbmark_clipboard', JSON.stringify(pastedData));
-
-                // Reload the page to show the comparison
-                location.reload();
-            } catch (err) {
-                alert('Failed to paste from clipboard. Make sure you have valid JSON data copied: ' + err.message);
-            }
-        });
-    </script>
+    <h1>Available Pages</h1>
+    <ul>
+        <li><a href="iframe.html">Iframe Test</a></li>
+        <li><a href="old-experimental.html">Old Experimental Page</a></li>
+    </ul>
 </body>
 </html>

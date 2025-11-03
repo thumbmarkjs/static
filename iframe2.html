@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>IFrame Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #fff3cd;
+        }
+        .result {
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <h3>IFrame Context</h3>
+    <div>Without API Key:</div>
+    <div class="result" id="withoutKey">Loading...</div>
+    <div>With API Key:</div>
+    <div class="result" id="withKey">Loading...</div>
+
+    <script src="thumbmark.umd.js"></script>
+    <script>
+        (async function() {
+            try {
+                const API_KEY = '6c5e18e199f82882f0a9539a5ff5df8b';
+
+                // Without API key
+                const thumbmarkWithoutKey = new ThumbmarkJS.Thumbmark();
+                const resultWithoutKey = await thumbmarkWithoutKey.get();
+                document.getElementById('withoutKey').textContent = resultWithoutKey.thumbmark;
+
+                // With API key
+                const thumbmarkWithKey = new ThumbmarkJS.Thumbmark({ api_key: API_KEY });
+                const resultWithKey = await thumbmarkWithKey.get();
+                document.getElementById('withKey').textContent = resultWithKey.thumbmark;
+
+                // Send results to parent
+                window.parent.postMessage({
+                    type: 'thumbmark-results',
+                    withoutKey: resultWithoutKey.thumbmark,
+                    withKey: resultWithKey.thumbmark,
+                    resultWithoutKey: resultWithoutKey,
+                    resultWithKey: resultWithKey
+                }, '*');
+            } catch (error) {
+                console.error('IFrame error:', error);
+            }
+        })();
+    </script>
+</body>
+</html>

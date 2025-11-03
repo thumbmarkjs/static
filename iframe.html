@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ThumbmarkJS IFrame Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .section h2 {
+            color: #555;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        .result {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+            word-break: break-all;
+        }
+        .loading {
+            color: #007bff;
+            font-style: italic;
+        }
+        .iframe-container {
+            border: 2px solid #dee2e6;
+            border-radius: 4px;
+            margin-top: 15px;
+            min-height: 300px;
+        }
+        iframe {
+            width: 100%;
+            height: 400px;
+            border: none;
+        }
+        .label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #495057;
+        }
+        .copy-btn {
+            padding: 5px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            margin-left: 10px;
+        }
+        .copy-btn:hover {
+            background: #218838;
+        }
+        .copy-btn.copied {
+            background: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ThumbmarkJS IFrame Context Test</h1>
+
+        <div class="section">
+            <h2>Main Window Results</h2>
+            <div class="label">
+                Without API Key:
+                <button class="copy-btn" onclick="copyComponents('mainWithoutKey')">Copy Components JSON</button>
+            </div>
+            <div class="result" id="mainWithoutKey"><span class="loading">Loading...</span></div>
+
+            <div class="label">
+                With API Key:
+                <button class="copy-btn" onclick="copyComponents('mainWithKey')">Copy Components JSON</button>
+            </div>
+            <div class="result" id="mainWithKey"><span class="loading">Loading...</span></div>
+        </div>
+
+        <div class="section">
+            <h2>IFrame Results</h2>
+            <div class="label">
+                Without API Key:
+                <button class="copy-btn" onclick="copyComponents('iframeWithoutKey')">Copy Components JSON</button>
+            </div>
+            <div class="result" id="iframeWithoutKey"><span class="loading">Loading...</span></div>
+
+            <div class="label">
+                With API Key:
+                <button class="copy-btn" onclick="copyComponents('iframeWithKey')">Copy Components JSON</button>
+            </div>
+            <div class="result" id="iframeWithKey"><span class="loading">Loading...</span></div>
+
+            <div class="iframe-container">
+                <iframe id="testIframe" src="about:blank"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script src="thumbmark.umd.js"></script>
+    <script>
+        const API_KEY = '6c5e18e199f82882f0a9539a5ff5df8b';
+
+        // Store full results for copying components
+        const results = {
+            mainWithoutKey: null,
+            mainWithKey: null,
+            iframeWithoutKey: null,
+            iframeWithKey: null
+        };
+
+        // Main window tests
+        async function runMainWindowTests() {
+            try {
+                // Without API key
+                const thumbmarkWithoutKey = new ThumbmarkJS.Thumbmark();
+                const resultWithoutKey = await thumbmarkWithoutKey.get();
+                results.mainWithoutKey = resultWithoutKey;
+                document.getElementById('mainWithoutKey').textContent = resultWithoutKey.thumbmark;
+
+                // With API key
+                const thumbmarkWithKey = new ThumbmarkJS.Thumbmark({ api_key: API_KEY });
+                const resultWithKey = await thumbmarkWithKey.get();
+                results.mainWithKey = resultWithKey;
+                document.getElementById('mainWithKey').textContent = resultWithKey.thumbmark;
+            } catch (error) {
+                console.error('Main window error:', error);
+            }
+        }
+
+        // Copy components to clipboard
+        function copyComponents(resultKey) {
+            const result = results[resultKey];
+            if (!result || !result.components) {
+                alert('Components not available yet');
+                return;
+            }
+
+            const json = JSON.stringify(result.components, null, 2);
+            const btn = event.target;
+            const originalText = btn.textContent;
+
+            // Try modern clipboard API first
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(json).then(() => {
+                    btn.textContent = 'Copied!';
+                    btn.classList.add('copied');
+                    setTimeout(() => {
+                        btn.textContent = originalText;
+                        btn.classList.remove('copied');
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Clipboard API failed:', err);
+                    fallbackCopy(json, btn, originalText);
+                });
+            } else {
+                fallbackCopy(json, btn, originalText);
+            }
+        }
+
+        // Fallback copy method for browsers with restricted clipboard access
+        function fallbackCopy(text, btn, originalText) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.left = '-9999px';
+            textarea.style.top = '0';
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    btn.textContent = 'Copied!';
+                    btn.classList.add('copied');
+                    setTimeout(() => {
+                        btn.textContent = originalText;
+                        btn.classList.remove('copied');
+                    }, 2000);
+                } else {
+                    alert('Copy failed. Please select the text manually and copy with Ctrl+C / Cmd+C');
+                }
+            } catch (err) {
+                console.error('Fallback copy failed:', err);
+                alert('Copy failed. Please select the text manually and copy with Ctrl+C / Cmd+C');
+            } finally {
+                document.body.removeChild(textarea);
+            }
+        }
+
+        // Listen for iframe results
+        window.addEventListener('message', function(event) {
+            if (event.data.type === 'thumbmark-results') {
+                results.iframeWithoutKey = event.data.resultWithoutKey;
+                results.iframeWithKey = event.data.resultWithKey;
+                document.getElementById('iframeWithoutKey').textContent = event.data.withoutKey;
+                document.getElementById('iframeWithKey').textContent = event.data.withKey;
+            }
+        });
+
+        // Run on load
+        window.addEventListener('DOMContentLoaded', () => {
+            // Run main window tests
+            runMainWindowTests();
+
+            // Load iframe
+            const iframe = document.getElementById('testIframe');
+            iframe.src = 'iframe2.html';
+        });
+    </script>
+</body>
+</html>
