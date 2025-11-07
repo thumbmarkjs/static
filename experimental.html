@@ -117,7 +117,7 @@
 
     <script>
         // Initialize Thumbmark
-        const thumbmark = new ThumbmarkJS.Thumbmark({experimental: true});
+        const thumbmark = new ThumbmarkJS.Thumbmark({experimental: true, performance: true});
 
         // Get the experimental components
         thumbmark.get().then(result => {
@@ -143,6 +143,7 @@
                     <tr>
                         <th>Component</th>
                         <th>Current Hash</th>
+                        <th>Time</th>
                         <th>Previous Hash</th>
                         <th>Match</th>
                         <th>Clipboard Hash</th>
@@ -155,6 +156,7 @@
                 const tbody = document.createElement('tbody');
                 for (const [componentName, componentData] of Object.entries(result.experimental)) {
                     const currentHash = componentData.hash;
+                    const timing = result.elapsed && result.elapsed[componentName] ? `${Math.round(result.elapsed[componentName])}ms` : 'N/A';
                     const previousHash = previous && previous[componentName] ? previous[componentName].hash : 'N/A';
                     const clipboardHash = clipboard && clipboard[componentName] ? clipboard[componentName].hash : 'N/A';
 
@@ -190,6 +192,7 @@
                     row.innerHTML = `
                         <td><strong>${componentName}</strong></td>
                         <td>${currentHash}</td>
+                        <td>${timing}</td>
                         <td>${previousHash}</td>
                         <td class="status ${prevStatusClass}">${prevStatusIcon}</td>
                         <td>${clipboardHash}</td>
