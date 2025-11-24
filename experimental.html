@@ -99,6 +99,55 @@
             font-style: italic;
             opacity: 0.7;
         }
+        .details-row {
+            background: rgba(255, 255, 255, 0.15);
+        }
+        .details-cell {
+            padding: 1rem;
+        }
+        .details-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        .details-section {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 0.75rem;
+            border-radius: 5px;
+        }
+        .details-section h4 {
+            margin: 0 0 0.5rem 0;
+            color: #ffd700;
+            font-size: 0.9rem;
+        }
+        .details-section pre {
+            margin: 0;
+            font-size: 0.75rem;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .copy-details-btn {
+            background: rgba(255, 215, 0, 0.3);
+            color: white;
+            border: 1px solid rgba(255, 215, 0, 0.5);
+            padding: 0.3rem 0.6rem;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            margin-top: 0.5rem;
+        }
+        .copy-details-btn:hover {
+            background: rgba(255, 215, 0, 0.5);
+        }
+        .toggle-details {
+            cursor: pointer;
+            color: #ffd700;
+            text-decoration: underline;
+            font-size: 0.85rem;
+            margin-left: 0.5rem;
+        }
     </style>
     <script src="thumbmark.umd.js"></script>
 </head>
@@ -113,6 +162,10 @@
         <div id="components">
             <div class="loading">Loading experimental components...</div>
         </div>
+    </div>
+
+    <div style="position: absolute; left: -9999px; top: 0;">
+        <iframe id="testIframe" src="about:blank" style="width: 300px; height: 300px; border: none;"></iframe>
     </div>
 
     <script>
@@ -142,8 +195,10 @@
                 thead.innerHTML = `
                     <tr>
                         <th>Component</th>
-                        <th>Current Hash</th>
+                        <th>Main Window Hash</th>
                         <th>Time</th>
+                        <th>IFrame Hash</th>
+                        <th>Match</th>
                         <th>Previous Hash</th>
                         <th>Match</th>
                         <th>Clipboard Hash</th>
@@ -152,13 +207,34 @@
                 `;
                 table.appendChild(thead);
 
+                // Get iframe data from sessionStorage
+                const iframeData = sessionStorage.getItem('thumbmark_iframe');
+                const iframe = iframeData ? JSON.parse(iframeData) : null;
+                console.log('Retrieved iframe data from sessionStorage:', iframe);
+
                 // Create body
                 const tbody = document.createElement('tbody');
                 for (const [componentName, componentData] of Object.entries(result.experimental)) {
                     const currentHash = componentData.hash;
                     const timing = result.elapsed && result.elapsed[componentName] ? `${Math.round(result.elapsed[componentName])}ms` : 'N/A';
+                    const iframeHash = (iframe && iframe[componentName] && iframe[componentName].hash) ? iframe[componentName].hash : 'N/A';
+                    console.log(`Component: ${componentName}, iframe data:`, iframe?.[componentName], 'hash:', iframeHash);
                     const previousHash = previous && previous[componentName] ? previous[componentName].hash : 'N/A';
                     const clipboardHash = clipboard && clipboard[componentName] ? clipboard[componentName].hash : 'N/A';
+
+                    // Compare with iframe
+                    let iframeStatusIcon = '';
+                    let iframeStatusClass = '';
+                    if (iframeHash === 'N/A') {
+                        iframeStatusIcon = '-';
+                        iframeStatusClass = '';
+                    } else if (currentHash === iframeHash) {
+                        iframeStatusIcon = '✓';
+                        iframeStatusClass = 'match';
+                    } else {
+                        iframeStatusIcon = '✗';
+                        iframeStatusClass = 'no-match';
+                    }
 
                     // Compare with previous
                     let prevStatusIcon = '';
@@ -190,19 +266,80 @@
 
                     const row = document.createElement('tr');
                     row.innerHTML = `
-                        <td><strong>${componentName}</strong></td>
+                        <td><strong>${componentName}</strong><span class="toggle-details" data-component="${componentName}">show details</span></td>
                         <td>${currentHash}</td>
                         <td>${timing}</td>
+                        <td>${iframeHash}</td>
+                        <td class="status ${iframeStatusClass}">${iframeStatusIcon}</td>
                         <td>${previousHash}</td>
                         <td class="status ${prevStatusClass}">${prevStatusIcon}</td>
                         <td>${clipboardHash}</td>
                         <td class="status ${clipStatusClass}">${clipStatusIcon}</td>
                     `;
                     tbody.appendChild(row);
+
+                    // Create details row (hidden by default)
+                    const detailsRow = document.createElement('tr');
+                    detailsRow.className = 'details-row';
+                    detailsRow.style.display = 'none';
+                    detailsRow.dataset.component = componentName;
+
+                    const mainDetails = componentData.details || {};
+                    const iframeDetails = (iframe && iframe[componentName] && iframe[componentName].details) ? iframe[componentName].details : null;
+
+                    detailsRow.innerHTML = `
+                        <td colspan="9" class="details-cell">
+                            <div class="details-content">
+                                <div class="details-section">
+                                    <h4>Main Window Details</h4>
+                                    <pre>${JSON.stringify(mainDetails, null, 2)}</pre>
+                                    <button class="copy-details-btn" data-details='${JSON.stringify(mainDetails)}'>Copy Main Details</button>
+                                </div>
+                                <div class="details-section">
+                                    <h4>IFrame Details</h4>
+                                    <pre>${iframeDetails ? JSON.stringify(iframeDetails, null, 2) : 'N/A'}</pre>
+                                    ${iframeDetails ? `<button class="copy-details-btn" data-details='${JSON.stringify(iframeDetails)}'>Copy IFrame Details</button>` : ''}
+                                </div>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(detailsRow);
                 }
                 table.appendChild(tbody);
 
                 componentsDiv.appendChild(table);
+
+                // Add event listeners for toggle details
+                document.querySelectorAll('.toggle-details').forEach(toggle => {
+                    toggle.addEventListener('click', function() {
+                        const componentName = this.dataset.component;
+                        const detailsRow = document.querySelector(`tr.details-row[data-component="${componentName}"]`);
+                        if (detailsRow.style.display === 'none') {
+                            detailsRow.style.display = 'table-row';
+                            this.textContent = 'hide details';
+                        } else {
+                            detailsRow.style.display = 'none';
+                            this.textContent = 'show details';
+                        }
+                    });
+                });
+
+                // Add event listeners for copy details buttons
+                document.querySelectorAll('.copy-details-btn').forEach(btn => {
+                    btn.addEventListener('click', async function() {
+                        const details = this.dataset.details;
+                        try {
+                            await navigator.clipboard.writeText(details);
+                            const originalText = this.textContent;
+                            this.textContent = 'Copied!';
+                            setTimeout(() => {
+                                this.textContent = originalText;
+                            }, 2000);
+                        } catch (err) {
+                            alert('Failed to copy: ' + err.message);
+                        }
+                    });
+                });
 
                 // Store current values in sessionStorage for next page load
                 sessionStorage.setItem('thumbmark_experimental', JSON.stringify(result.experimental));
@@ -244,6 +381,37 @@
                 location.reload();
             } catch (err) {
                 alert('Failed to paste from clipboard. Make sure you have valid JSON data copied: ' + err.message);
+            }
+        });
+
+        // Listen for iframe experimental results
+        window.addEventListener('message', function(event) {
+            if (event.data.type === 'experimental-results') {
+                console.log('Parent received experimental data:', event.data.experimental);
+                const newData = JSON.stringify(event.data.experimental);
+                console.log('Stringified data:', newData);
+                const existingData = sessionStorage.getItem('thumbmark_iframe');
+
+                // Only reload if data has changed or doesn't exist
+                if (existingData !== newData) {
+                    sessionStorage.setItem('thumbmark_iframe', newData);
+                    console.log('Stored in sessionStorage:', sessionStorage.getItem('thumbmark_iframe'));
+                    // Set flag to prevent loading iframe again after reload
+                    sessionStorage.setItem('thumbmark_iframe_loaded', 'true');
+                    // Reload to show the comparison
+                    location.reload();
+                }
+            }
+        });
+
+        // Load iframe after page loads
+        window.addEventListener('DOMContentLoaded', () => {
+            const iframeLoadedFlag = sessionStorage.getItem('thumbmark_iframe_loaded');
+
+            // Only load iframe if we haven't loaded it before in this session
+            if (!iframeLoadedFlag) {
+                const iframe = document.getElementById('testIframe');
+                iframe.src = 'experimental-iframe2.html';
             }
         });
     </script>

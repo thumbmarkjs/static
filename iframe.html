@@ -156,7 +156,7 @@
 
     <script src="thumbmark.umd.js"></script>
     <script>
-        const API_KEY = '6c5e18e199f82882f0a9539a5ff5df8b';
+        const API_KEY = '0f76f74aca30d67989ead3e504d4271a';
 
         // Store full results for copying components
         const results = {
@@ -170,15 +170,41 @@
         async function runMainWindowTests() {
             try {
                 // Without API key
-                const thumbmarkWithoutKey = new ThumbmarkJS.Thumbmark();
+                console.log('[Main] Starting thumbmark without API key...');
+                const startWithoutKey = performance.now();
+                const thumbmarkWithoutKey = new ThumbmarkJS.Thumbmark({ performance: true });
                 const resultWithoutKey = await thumbmarkWithoutKey.get();
+                const elapsedWithoutKey = performance.now() - startWithoutKey;
+                console.log(`[Main] Without API key completed in ${elapsedWithoutKey.toFixed(2)}ms`);
+
+                // Log performance for each component
+                if (resultWithoutKey.performance) {
+                    console.log('[Main] Component timings (without API key):');
+                    Object.entries(resultWithoutKey.performance).forEach(([component, time]) => {
+                        console.log(`  ${component}: ${time}ms`);
+                    });
+                }
+
                 results.mainWithoutKey = resultWithoutKey;
                 document.getElementById('mainWithoutKey').textContent = resultWithoutKey.thumbmark;
                 checkMatch('WithoutKey');
 
                 // With API key
-                const thumbmarkWithKey = new ThumbmarkJS.Thumbmark({ api_key: API_KEY });
+                console.log('[Main] Starting thumbmark with API key...');
+                const startWithKey = performance.now();
+                const thumbmarkWithKey = new ThumbmarkJS.Thumbmark({ api_endpoint: 'https://api-dev.thumbmarkjs.com', api_key: API_KEY, performance: true });
                 const resultWithKey = await thumbmarkWithKey.get();
+                const elapsedWithKey = performance.now() - startWithKey;
+                console.log(`[Main] With API key completed in ${elapsedWithKey.toFixed(2)}ms`);
+
+                // Log performance for each component
+                if (resultWithKey.performance) {
+                    console.log('[Main] Component timings (with API key):');
+                    Object.entries(resultWithKey.performance).forEach(([component, time]) => {
+                        console.log(`  ${component}: ${time}ms`);
+                    });
+                }
+
                 results.mainWithKey = resultWithKey;
                 document.getElementById('mainWithKey').textContent = resultWithKey.thumbmark;
                 checkMatch('WithKey');

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Experimental IFrame Test</title>
+    <style>
+        /* Minimal styling to avoid affecting fingerprinting measurements */
+        body {
+            padding: 20px;
+            background: #fff3cd;
+        }
+        .result {
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <h3>IFrame Context - Experimental Components</h3>
+    <div>Loading experimental components...</div>
+    <div class="result" id="status">Initializing...</div>
+
+    <script src="thumbmark.umd.js"></script>
+    <script>
+        (async function() {
+            try {
+                const statusDiv = document.getElementById('status');
+                statusDiv.textContent = 'Running experimental components...';
+
+                // Initialize with experimental features enabled
+                const thumbmark = new ThumbmarkJS.Thumbmark({ experimental: true, performance: true });
+                const result = await thumbmark.get();
+
+                statusDiv.textContent = 'Experimental components collected! Sending to parent...';
+
+                // Send experimental results to parent window
+                if (result.experimental) {
+                    console.log('IFrame experimental data:', result.experimental);
+                    window.parent.postMessage({
+                        type: 'experimental-results',
+                        experimental: result.experimental
+                    }, '*');
+                    statusDiv.textContent = 'Results sent to parent window!';
+                } else {
+                    statusDiv.textContent = 'No experimental components found';
+                }
+            } catch (error) {
+                console.error('IFrame error:', error);
+                document.getElementById('status').textContent = 'Error: ' + error.message;
+            }
+        })();
+    </script>
+</body>
+</html>

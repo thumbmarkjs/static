@@ -29,16 +29,42 @@
     <script>
         (async function() {
             try {
-                const API_KEY = '6c5e18e199f82882f0a9539a5ff5df8b';
+                const API_KEY = '0f76f74aca30d67989ead3e504d4271a';
 
                 // Without API key
-                const thumbmarkWithoutKey = new ThumbmarkJS.Thumbmark({});
+                console.log('[IFrame] Starting thumbmark without API key...');
+                const startWithoutKey = performance.now();
+                const thumbmarkWithoutKey = new ThumbmarkJS.Thumbmark({ performance: true });
                 const resultWithoutKey = await thumbmarkWithoutKey.get();
+                const elapsedWithoutKey = performance.now() - startWithoutKey;
+                console.log(`[IFrame] Without API key completed in ${elapsedWithoutKey.toFixed(2)}ms`);
+
+                // Log performance for each component
+                if (resultWithoutKey.performance) {
+                    console.log('[IFrame] Component timings (without API key):');
+                    Object.entries(resultWithoutKey.performance).forEach(([component, time]) => {
+                        console.log(`  ${component}: ${time}ms`);
+                    });
+                }
+
                 document.getElementById('withoutKey').textContent = resultWithoutKey.thumbmark;
 
                 // With API key
-                const thumbmarkWithKey = new ThumbmarkJS.Thumbmark({ api_key: API_KEY });
+                console.log('[IFrame] Starting thumbmark with API key...');
+                const startWithKey = performance.now();
+                const thumbmarkWithKey = new ThumbmarkJS.Thumbmark({ api_endpoint: 'https://api-dev.thumbmarkjs.com', api_key: API_KEY, performance: true });
                 const resultWithKey = await thumbmarkWithKey.get();
+                const elapsedWithKey = performance.now() - startWithKey;
+                console.log(`[IFrame] With API key completed in ${elapsedWithKey.toFixed(2)}ms`);
+
+                // Log performance for each component
+                if (resultWithKey.performance) {
+                    console.log('[IFrame] Component timings (with API key):');
+                    Object.entries(resultWithKey.performance).forEach(([component, time]) => {
+                        console.log(`  ${component}: ${time}ms`);
+                    });
+                }
+
                 document.getElementById('withKey').textContent = resultWithKey.thumbmark;
 
                 // Send results to parent
