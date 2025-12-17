@@ -50,12 +50,19 @@
         }
 
         .iframe-container {
-            display: none;
+            /* display: none; - Removed to allow layout calculation */
+            display: block;
+        }
+
+        .iframe-container {
+            position: absolute;
+            left: -9999px;
+            top: 0;
         }
 
         iframe {
-            width: 0;
-            height: 0;
+            width: 300px;
+            height: 300px;
             border: none;
         }
 
@@ -182,7 +189,7 @@
 
     <script src="thumbmark.umd.js"></script>
     <script>
-        const API_KEY = '0f76f74aca30d67989ead3e504d4271a';
+        const API_KEY = '4f56b6a9ba40a6e15ba2099ba86af1c9';
 
         // Store full results for copying components
         const results = {
