@@ -52,7 +52,7 @@
                 // With API key
                 console.log('[IFrame] Starting thumbmark with API key...');
                 const startWithKey = performance.now();
-                const thumbmarkWithKey = new ThumbmarkJS.Thumbmark({ api_endpoint: 'https://api-dev.thumbmarkjs.com', api_key: API_KEY, performance: true });
+                const thumbmarkWithKey = new ThumbmarkJS.Thumbmark({ api_endpoint: 'https://api-dev.thumbmarkjs.com', api_key: API_KEY, performance: true, stabilize: ['iframe'] });
                 const resultWithKey = await thumbmarkWithKey.get();
                 const elapsedWithKey = performance.now() - startWithKey;
                 console.log(`[IFrame] With API key completed in ${elapsedWithKey.toFixed(2)}ms`);

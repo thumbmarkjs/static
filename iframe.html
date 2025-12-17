@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>ThumbmarkJS IFrame Test</title>
     <style>
@@ -8,27 +9,32 @@
             margin: 20px;
             background-color: #f5f5f5;
         }
+
         .container {
             max-width: 1200px;
             margin: 0 auto;
         }
+
         h1 {
             color: #333;
             text-align: center;
         }
+
         .section {
             background: white;
             padding: 20px;
             margin: 20px 0;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
+
         .section h2 {
             color: #555;
             border-bottom: 2px solid #007bff;
             padding-bottom: 10px;
             margin-top: 0;
         }
+
         .result {
             background: #f8f9fa;
             padding: 15px;
@@ -37,23 +43,28 @@
             font-family: monospace;
             word-break: break-all;
         }
+
         .loading {
             color: #007bff;
             font-style: italic;
         }
+
         .iframe-container {
             display: none;
         }
+
         iframe {
             width: 0;
             height: 0;
             border: none;
         }
+
         .label {
             font-weight: bold;
             margin-bottom: 5px;
             color: #495057;
         }
+
         .copy-btn {
             padding: 5px 10px;
             font-size: 12px;
@@ -64,47 +75,58 @@
             border-radius: 4px;
             margin-left: 10px;
         }
+
         .copy-btn:hover {
             background: #218838;
         }
+
         .copy-btn.copied {
             background: #6c757d;
         }
+
         .comparison-table {
             width: 100%;
             border-collapse: collapse;
             margin: 20px 0;
         }
+
         .comparison-table th,
         .comparison-table td {
             padding: 15px;
             text-align: left;
             border: 1px solid #dee2e6;
         }
+
         .comparison-table th {
             background: #007bff;
             color: white;
             font-weight: bold;
         }
+
         .comparison-table td {
             background: #f8f9fa;
         }
+
         .comparison-table .result {
             margin: 5px 0;
         }
+
         .match-indicator {
             font-size: 24px;
             margin-left: 10px;
             vertical-align: middle;
         }
+
         .match {
             color: #28a745;
         }
+
         .no-match {
             color: #dc3545;
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <h1>ThumbmarkJS IFrame Context Test</h1>
@@ -125,11 +147,13 @@
                         <td><strong>Without API Key</strong></td>
                         <td>
                             <div class="result" id="mainWithoutKey"><span class="loading">Loading...</span></div>
-                            <button class="copy-btn" onclick="copyComponents('mainWithoutKey')">Copy Components JSON</button>
+                            <button class="copy-btn" onclick="copyComponents('mainWithoutKey')">Copy Components
+                                JSON</button>
                         </td>
                         <td>
                             <div class="result" id="iframeWithoutKey"><span class="loading">Loading...</span></div>
-                            <button class="copy-btn" onclick="copyComponents('iframeWithoutKey')">Copy Components JSON</button>
+                            <button class="copy-btn" onclick="copyComponents('iframeWithoutKey')">Copy Components
+                                JSON</button>
                         </td>
                         <td id="matchWithoutKey" style="text-align: center;"></td>
                     </tr>
@@ -137,11 +161,13 @@
                         <td><strong>With API Key</strong></td>
                         <td>
                             <div class="result" id="mainWithKey"><span class="loading">Loading...</span></div>
-                            <button class="copy-btn" onclick="copyComponents('mainWithKey')">Copy Components JSON</button>
+                            <button class="copy-btn" onclick="copyComponents('mainWithKey')">Copy Components
+                                JSON</button>
                         </td>
                         <td>
                             <div class="result" id="iframeWithKey"><span class="loading">Loading...</span></div>
-                            <button class="copy-btn" onclick="copyComponents('iframeWithKey')">Copy Components JSON</button>
+                            <button class="copy-btn" onclick="copyComponents('iframeWithKey')">Copy Components
+                                JSON</button>
                         </td>
                         <td id="matchWithKey" style="text-align: center;"></td>
                     </tr>
@@ -192,7 +218,7 @@
                 // With API key
                 console.log('[Main] Starting thumbmark with API key...');
                 const startWithKey = performance.now();
-                const thumbmarkWithKey = new ThumbmarkJS.Thumbmark({ api_endpoint: 'https://api-dev.thumbmarkjs.com', api_key: API_KEY, performance: true });
+                const thumbmarkWithKey = new ThumbmarkJS.Thumbmark({ api_endpoint: 'https://api-dev.thumbmarkjs.com', api_key: API_KEY, performance: true, stabilize: ['iframe'] });
                 const resultWithKey = await thumbmarkWithKey.get();
                 const elapsedWithKey = performance.now() - startWithKey;
                 console.log(`[Main] With API key completed in ${elapsedWithKey.toFixed(2)}ms`);
@@ -289,7 +315,7 @@
         }
 
         // Listen for iframe results
-        window.addEventListener('message', function(event) {
+        window.addEventListener('message', function (event) {
             if (event.data.type === 'thumbmark-results') {
                 results.iframeWithoutKey = event.data.resultWithoutKey;
                 results.iframeWithKey = event.data.resultWithKey;
@@ -311,4 +337,5 @@
         });
     </script>
 </body>
+
 </html>
