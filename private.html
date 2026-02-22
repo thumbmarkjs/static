@@ -82,6 +82,8 @@
 
         <div class="section">
             <h2>Thumbmark</h2>
+            <div class="label">Visitor ID:</div>
+            <div class="result" id="visitorId"><span class="loading">Loading...</span></div>
             <div class="label">Hash:</div>
             <div class="result" id="thumbmarkHash"><span class="loading">Loading...</span></div>
             <div class="label">Components:</div>
@@ -106,6 +108,7 @@
                 });
                 const result = await thumbmark.get();
 
+                document.getElementById('visitorId').textContent = result.visitorId || 'N/A';
                 document.getElementById('thumbmarkHash').textContent = result.thumbmark;
                 componentsData = result.components;
                 document.getElementById('thumbmarkComponents').textContent = JSON.stringify(result.components, null, 2);
