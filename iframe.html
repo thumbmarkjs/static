@@ -189,7 +189,7 @@
 
     <script src="thumbmark.umd.js"></script>
     <script>
-        const API_KEY = '4f56b6a9ba40a6e15ba2099ba86af1c9';
+        const API_KEY = '6c5e18e199f82882f0a9539a5ff5df8b';
 
         // Store full results for copying components
         const results = {
@@ -225,7 +225,7 @@
                 // With API key
                 console.log('[Main] Starting thumbmark with API key...');
                 const startWithKey = performance.now();
-                const thumbmarkWithKey = new ThumbmarkJS.Thumbmark({ api_endpoint: 'https://api-dev.thumbmarkjs.com', api_key: API_KEY, performance: true, stabilize: ['iframe'] });
+                const thumbmarkWithKey = new ThumbmarkJS.Thumbmark({ api_endpoint: 'https://api.thumbmarkjs.com', api_key: API_KEY, performance: true, stabilize: ['iframe'] });
                 const resultWithKey = await thumbmarkWithKey.get();
                 const elapsedWithKey = performance.now() - startWithKey;
                 console.log(`[Main] With API key completed in ${elapsedWithKey.toFixed(2)}ms`);

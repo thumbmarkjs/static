@@ -94,16 +94,14 @@
 
     <script src="thumbmark.umd.js"></script>
     <script>
-        const API_KEY = '4f56b6a9ba40a6e15ba2099ba86af1c9';
+        const API_KEY = '6c5e18e199f82882f0a9539a5ff5df8b';
 
         let componentsData = null;
 
         async function run() {
             try {
                 const thumbmark = new ThumbmarkJS.Thumbmark({
-                    api_endpoint: 'https://api-dev.thumbmarkjs.com',
                     api_key: API_KEY,
-                    performance: true,
                     stabilize: ['private']
                 });
                 const result = await thumbmark.get();
