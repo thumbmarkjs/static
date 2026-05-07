@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Thumbmarkjs perf A/B (baseline vs optimized)</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 16px; background: #f5f5f5; color: #222; }
+  .container { max-width: 720px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 12px 0; }
+  .switch { display: flex; gap: 8px; margin-bottom: 16px; }
+  .switch a { flex: 1; padding: 12px; text-align: center; background: #ddd; color: #222; text-decoration: none; border-radius: 6px; font-weight: 600; }
+  .switch a.active { background: #0066cc; color: white; }
+  .card { background: white; border-radius: 8px; padding: 16px; margin: 12px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .row { display: flex; justify-content: space-between; align-items: baseline; margin: 6px 0; }
+  .row .label { color: #666; font-size: 14px; }
+  .row .value { font-family: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace; font-size: 13px; word-break: break-all; text-align: right; max-width: 60%; }
+  .hash { font-family: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace; font-size: 14px; padding: 12px; background: #eef; border-radius: 6px; word-break: break-all; }
+  .runs { font-size: 12px; color: #666; margin-top: 6px; }
+  button { padding: 12px 20px; font-size: 16px; border: 0; border-radius: 6px; background: #0066cc; color: white; cursor: pointer; }
+  button:disabled { background: #999; cursor: wait; }
+  .label-bold { font-weight: 600; color: #333; }
+  .pending { color: #999; font-style: italic; }
+  .timing { display: inline-block; padding: 2px 8px; background: #ffeaa7; border-radius: 4px; font-size: 12px; }
+  .url-line { font-size: 11px; color: #888; word-break: break-all; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>thumbmarkjs perf A/B</h1>
+  <div class="switch">
+    <a id="link-baseline" href="?ver=baseline">Baseline</a>
+    <a id="link-optimized" href="?ver=optimized">Optimized</a>
+  </div>
+
+  <div class="card">
+    <div class="row"><span class="label">Loaded build</span><span class="value label-bold" id="loaded">…</span></div>
+    <div class="row"><span class="label">Library version</span><span class="value" id="version">…</span></div>
+    <div class="row"><span class="label">Browser</span><span class="value" id="ua">…</span></div>
+    <div class="url-line" id="url-line"></div>
+  </div>
+
+  <div class="card">
+    <div class="row"><span class="label label-bold">Thumbmark hash</span><span class="value pending" id="hash-status">running…</span></div>
+    <div class="hash" id="hash">—</div>
+    <div class="runs" id="runs"></div>
+    <div class="row"><span class="label">Wall-clock</span><span class="value timing" id="elapsed">—</span></div>
+    <button id="run-again" onclick="runAgain()" disabled>Run again</button>
+  </div>
+
+  <div class="card">
+    <div class="label-bold" style="margin-bottom:6px;">WebGL component</div>
+    <div class="row"><span class="label">commonPixelsHash</span><span class="value" id="webgl-hash">—</span></div>
+    <div class="row"><span class="label">webgl elapsed</span><span class="value" id="webgl-ms">—</span></div>
+  </div>
+
+  <div class="card">
+    <div class="label-bold" style="margin-bottom:6px;">Canvas component</div>
+    <div class="row"><span class="label">commonPixelsHash</span><span class="value" id="canvas-hash">—</span></div>
+    <div class="row"><span class="label">canvas elapsed</span><span class="value" id="canvas-ms">—</span></div>
+  </div>
+
+  <div class="card" style="background: #fafafa;">
+    <div class="label-bold" style="margin-bottom:6px;">All component hashes (for cross-version compare)</div>
+    <pre id="all-components" style="font-size: 11px; overflow-x: auto; margin: 0;">—</pre>
+  </div>
+</div>
+
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const ver = params.get('ver') === 'baseline' ? 'baseline' : 'optimized';
+  const SCRIPT_URL = ver === 'baseline'
+    ? 'thumbmark.umd.1.8.1-baseline.js'
+    : 'thumbmark.umd.1.8.1-optimized.js';
+
+  document.getElementById('loaded').textContent = ver;
+  document.getElementById('ua').textContent = navigator.userAgent;
+  document.getElementById('url-line').textContent = window.location.href;
+  document.getElementById('link-' + ver).classList.add('active');
+
+  // Track multi-run hash stability
+  const hashesSeen = [];
+
+  async function runOnce() {
+    const t0 = performance.now();
+    const r = await window.ThumbmarkJS.getThumbmark({ performance: true });
+    const elapsed = performance.now() - t0;
+    return { result: r, elapsed };
+  }
+
+  function summariseComponents(components) {
+    if (!components) return '(none)';
+    return Object.entries(components).map(([k, v]) => {
+      // Show hash-like keys, condense the rest
+      if (typeof v === 'object' && v !== null) {
+        const keys = Object.keys(v);
+        // Find any "hash" subkey
+        const hashKey = keys.find(k => k.toLowerCase().endsWith('hash'));
+        if (hashKey) return `${k}.${hashKey}: ${v[hashKey]}`;
+        return `${k}: ${JSON.stringify(v).slice(0, 80)}${JSON.stringify(v).length > 80 ? '…' : ''}`;
+      }
+      return `${k}: ${v}`;
+    }).join('\n');
+  }
+
+  async function runAgain() {
+    const btn = document.getElementById('run-again');
+    btn.disabled = true;
+    document.getElementById('hash-status').textContent = 'running…';
+    try {
+      const { result, elapsed } = await runOnce();
+      document.getElementById('hash').textContent = result.thumbmark;
+      document.getElementById('hash-status').textContent = 'done';
+      document.getElementById('hash-status').classList.remove('pending');
+      document.getElementById('elapsed').textContent = elapsed.toFixed(1) + ' ms';
+      document.getElementById('version').textContent = result.version || '(none)';
+      document.getElementById('webgl-hash').textContent = result.components?.webgl?.commonPixelsHash ?? '(unsupported)';
+      document.getElementById('webgl-ms').textContent = (result.elapsed?.webgl ?? 0).toFixed(2) + ' ms';
+      document.getElementById('canvas-hash').textContent = result.components?.canvas?.commonPixelsHash ?? '(none)';
+      document.getElementById('canvas-ms').textContent = (result.elapsed?.canvas ?? 0).toFixed(2) + ' ms';
+      document.getElementById('all-components').textContent = summariseComponents(result.components);
+
+      hashesSeen.push(result.thumbmark);
+      const unique = new Set(hashesSeen).size;
+      document.getElementById('runs').textContent =
+        `runs so far: ${hashesSeen.length} (unique hashes: ${unique})${unique > 1 ? ' ⚠️ DRIFT' : ''}`;
+    } catch (e) {
+      document.getElementById('hash-status').textContent = 'error';
+      document.getElementById('hash').textContent = String(e);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // Load the chosen build and auto-run once
+  const script = document.createElement('script');
+  script.src = SCRIPT_URL + '?cb=' + Date.now();   // cache-bust so iteration is reliable
+  script.onload = () => { runAgain(); };
+  script.onerror = () => {
+    document.getElementById('hash-status').textContent = 'failed to load ' + SCRIPT_URL;
+  };
+  document.head.appendChild(script);
+</script>
+</body>
+</html>
