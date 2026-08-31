@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signal stability bench</title>
+<style>
+  :root {
+    --bg: #f4f6f8; --card: #ffffff; --ink: #1b2227; --ink-2: #5b6b75; --ink-3: #8a99a3;
+    --rule: #dde4e9; --accent: #0e6b77;
+    --same: #1c6b49; --same-bg: #e2f0e8;
+    --diff: #a33320; --diff-bg: #f8e2de;
+    --absent: #7d6a15; --absent-bg: #f4eed6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e1519; --card: #16212700; --card: #162127; --ink: #dfe8ec; --ink-2: #9cadb6; --ink-3: #6d7f88;
+      --rule: #26343b; --accent: #3fb3c2;
+      --same: #62c08f; --same-bg: #17301f; --diff: #e8897a; --diff-bg: #351b18;
+      --absent: #d3b45c; --absent-bg: #2f2810;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 16px 14px 64px; }
+  h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .sub { color: var(--ink-2); font-size: 13px; margin: 0 0 16px; }
+  .card { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 14px; margin-bottom: 14px; }
+  .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-3); margin: 0 0 10px; }
+  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+
+  /* controls: big tap targets, wrap on mobile */
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; }
+  button {
+    font: 600 14px/1 inherit; font-family: inherit; padding: 11px 14px; min-height: 44px;
+    border: 1px solid var(--rule); border-radius: 7px; background: var(--card); color: var(--ink);
+    cursor: pointer; flex: 1 1 auto; min-width: 120px;
+  }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button:disabled { opacity: 0.45; cursor: default; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* run summary */
+  .meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .meta div { min-width: 0; }
+  .meta dt { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); margin-bottom: 2px; }
+  .meta dd { margin: 0; font-family: ui-monospace, Menlo, monospace; font-size: 12px; word-break: break-all; }
+
+  /* comparison legend + scoreboard */
+  .scores { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 8px; }
+  .score { border: 1px solid var(--rule); border-radius: 7px; padding: 9px 10px; }
+  .score .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); }
+  .score .v { font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .score .n { font-size: 11px; color: var(--ink-2); }
+  .score.on-diff .v { color: var(--diff); }
+  .score.on-same .v { color: var(--same); }
+  .score.on-idle .v { color: var(--ink-3); }
+
+  /* signal rows */
+  .rows { border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+  .row { border-top: 1px solid var(--rule); }
+  .row:first-child { border-top: 0; }
+  .row > summary {
+    list-style: none; cursor: pointer; padding: 10px 12px; display: flex; flex-wrap: wrap;
+    align-items: center; gap: 8px; background: var(--card);
+  }
+  .row > summary::-webkit-details-marker { display: none; }
+  .row[open] > summary { border-bottom: 1px solid var(--rule); }
+  .name { font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; font-weight: 600; flex: 1 1 190px; min-width: 0; word-break: break-all; }
+  .chips { display: flex; gap: 4px; flex-wrap: wrap; }
+  .chip {
+    font-family: ui-monospace, Menlo, monospace; font-size: 10.5px; font-weight: 700;
+    padding: 3px 6px; border-radius: 4px; letter-spacing: 0.03em; white-space: nowrap;
+  }
+  .chip.same { color: var(--same); background: var(--same-bg); }
+  .chip.diff { color: var(--diff); background: var(--diff-bg); }
+  .chip.absent { color: var(--absent); background: var(--absent-bg); }
+  .chip.idle { color: var(--ink-3); background: transparent; border: 1px dashed var(--rule); }
+  .ms { font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .detail { padding: 10px 12px; background: var(--bg); }
+  .detail table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .detail th { text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-3); padding: 4px 8px 4px 0; white-space: nowrap; vertical-align: top; width: 92px; }
+  .detail td { padding: 4px 0; font-family: ui-monospace, Menlo, monospace; word-break: break-all; vertical-align: top; }
+  .detail td.d { color: var(--diff); }
+
+  .note { font-size: 12.5px; color: var(--ink-2); margin: 10px 0 0; }
+  .note b { color: var(--ink); }
+  ol.how { margin: 8px 0 0; padding-left: 20px; font-size: 13px; color: var(--ink-2); }
+  ol.how li { margin-bottom: 6px; }
+  #status { font-size: 13px; color: var(--ink-2); margin-top: 10px; min-height: 20px; }
+  iframe#frame { width: 100%; height: 74px; border: 1px solid var(--rule); border-radius: 7px; background: var(--card); }
+  input[type=text] {
+    width: 100%; padding: 10px; min-height: 44px; font-family: ui-monospace, Menlo, monospace; font-size: 12px;
+    border: 1px solid var(--rule); border-radius: 7px; background: var(--bg); color: var(--ink);
+  }
+  textarea {
+    width: 100%; min-height: 90px; padding: 10px; font-family: ui-monospace, Menlo, monospace; font-size: 12px;
+    border: 1px solid var(--rule); border-radius: 7px; background: var(--bg); color: var(--ink);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Signal stability bench</h1>
+  <p class="sub">Fetches the experimental payload, evaluates it, and compares every signal across
+  contexts. Built to answer one question per column: does this signal hold still?</p>
+
+  <div class="card">
+    <h2>Artifact</h2>
+    <input type="text" id="artifactUrl" spellcheck="false" autocapitalize="off" autocorrect="off">
+    <p class="note">Override with <code>?artifact=…</code> to point at a non-prod tier.</p>
+    <div class="controls" style="margin-top:10px">
+      <button class="primary" id="runBtn">Run</button>
+      <button id="rerunBtn" disabled>Run again (noise)</button>
+      <button id="pinBtn" disabled>Pin as baseline</button>
+    </div>
+    <div class="controls" style="margin-top:8px">
+      <button id="copyBtn" disabled>Copy</button>
+      <button id="importBtn">Paste / import</button>
+      <button id="clearBtn">Clear stored</button>
+    </div>
+    <div id="status"></div>
+  </div>
+
+  <div class="card" id="metaCard" hidden>
+    <h2>This run</h2>
+    <dl class="meta" id="meta"></dl>
+  </div>
+
+  <div class="card" id="scoreCard" hidden>
+    <h2>Signals that differ</h2>
+    <div class="scores" id="scores"></div>
+    <p class="note" id="scoreNote"></p>
+  </div>
+
+  <div class="card" id="rowsCard" hidden>
+    <h2>Per signal</h2>
+    <div class="rows" id="rows"></div>
+    <p class="note"><b>R</b> re-run · <b>L</b> reload · <b>F</b> iframe · <b>B</b> baseline · <b>C</b> imported.
+    Tap a signal to see the values.</p>
+  </div>
+
+  <div class="card">
+    <h2>iframe context</h2>
+    <iframe id="frame" title="iframe signal run"></iframe>
+  </div>
+
+  <div class="card">
+    <h2>How to use it</h2>
+    <ol class="how">
+      <li><b>Reload drift</b> — Run, then reload the page. The <b>L</b> column compares against the
+      previous load in this tab.</li>
+      <li><b>Private browsing</b> — Run here, <b>Copy</b>, open a private window, paste into
+      <b>Paste / import</b>, Run. The <b>C</b> column is the cross-context diff.</li>
+      <li><b>A different screen</b> — Run, <b>Pin as baseline</b>, drag the window to another
+      monitor, reload, Run. The <b>B</b> column survives reloads and new tabs.</li>
+      <li><b>iframe vs main window</b> — the <b>F</b> column is filled automatically on every run.</li>
+      <li><b>Mobile</b> — open this page on a phone and compare against a desktop run via
+      <b>Copy</b> / <b>Paste</b>.</li>
+    </ol>
+    <p class="note"><b>Expect R to always match.</b> Two evaluations in one page load differ only if a
+    signal is non-deterministic — <code>clockGranularityMs</code> is the one signal for which that is
+    by design. Anything else showing R:diff is a bug worth reporting.</p>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var DEFAULT_ARTIFACT = 'https://experimental.thumbmarkjs.com/experimental.min.js';
+  var KEY_PREV = 'tm_signals_prev';       // sessionStorage: survives reload, per tab
+  var KEY_BASE = 'tm_signals_baseline';   // localStorage: survives tabs and restarts
+  var KEY_IMPORT = 'tm_signals_imported'; // sessionStorage: pasted from elsewhere
+
+  // Signals known to be non-deterministic by design; flagged rather than
+  // treated as a failure when they differ between two runs.
+  var EXPECTED_UNSTABLE = ['clockGranularityMs'];
+
+  var els = {
+    url: document.getElementById('artifactUrl'),
+    run: document.getElementById('runBtn'),
+    rerun: document.getElementById('rerunBtn'),
+    pin: document.getElementById('pinBtn'),
+    copy: document.getElementById('copyBtn'),
+    imp: document.getElementById('importBtn'),
+    clear: document.getElementById('clearBtn'),
+    status: document.getElementById('status'),
+    meta: document.getElementById('meta'),
+    metaCard: document.getElementById('metaCard'),
+    scores: document.getElementById('scores'),
+    scoreCard: document.getElementById('scoreCard'),
+    scoreNote: document.getElementById('scoreNote'),
+    rows: document.getElementById('rows'),
+    rowsCard: document.getElementById('rowsCard'),
+    frame: document.getElementById('frame')
+  };
+
+  var state = { now: null, rerun: null, prev: null, iframe: null, baseline: null, imported: null };
+
+  // ---- helpers -------------------------------------------------------------
+
+  // Key-order-independent comparison: two signal values are the same value
+  // even if the engine enumerated an object's keys differently.
+  function stable(value) {
+    if (value === null || typeof value !== 'object') return JSON.stringify(value);
+    if (Array.isArray(value)) return '[' + value.map(stable).join(',') + ']';
+    return '{' + Object.keys(value).sort().map(function (k) {
+      return JSON.stringify(k) + ':' + stable(value[k]);
+    }).join(',') + '}';
+  }
+
+  function readStore(store, key) {
+    try {
+      var raw = store.getItem(key);
+      return raw ? JSON.parse(raw) : null;
+    } catch (err) { return null; }
+  }
+  function writeStore(store, key, value) {
+    try { store.setItem(key, JSON.stringify(value)); } catch (err) { /* private mode quota */ }
+  }
+
+  function say(message) { els.status.textContent = message; }
+
+  async function sha256(text) {
+    try {
+      var bytes = new TextEncoder().encode(text);
+      var digest = await crypto.subtle.digest('SHA-256', bytes);
+      return Array.from(new Uint8Array(digest)).map(function (b) {
+        return b.toString(16).padStart(2, '0');
+      }).join('');
+    } catch (err) { return null; } // subtle crypto needs a secure context
+  }
+
+  // ---- running -------------------------------------------------------------
+
+  async function evaluateArtifact(url) {
+    var response = await fetch(url, { method: 'GET' });
+    if (!response.ok) throw new Error('HTTP ' + response.status + ' fetching the artifact');
+    var text = await response.text();
+
+    // Pre-installing an array on globalThis switches on the shipped runner's
+    // timing hook: it pushes [name, syncMs, settleMs, status] per signal, so
+    // 'timeout' and 'error' become visible here. That is the whole reason to
+    // run this on a real phone -- a signal that quietly times out on a slow
+    // device is invisible in the envelope, which just lacks the key.
+    var timings = [];
+    globalThis.__thumbmarkSignalTimings = timings;
+
+    var started = performance.now();
+    var envelope = await Promise.resolve(eval(text));
+    var elapsedMs = performance.now() - started;
+    delete globalThis.__thumbmarkSignalTimings;
+
+    if (!envelope || typeof envelope !== 'object' || !envelope.signals) {
+      throw new Error('the artifact did not evaluate to a { schema, payload_id, signals } envelope');
+    }
+    return {
+      envelope: envelope,
+      timings: timings,
+      elapsedMs: elapsedMs,
+      bytes: text.length,
+      sha256: await sha256(text),
+      at: new Date().toISOString(),
+      ua: navigator.userAgent
+    };
+  }
+
+  function artifactUrl() {
+    return els.url.value.trim() || DEFAULT_ARTIFACT;
+  }
+
+  async function run() {
+    els.run.disabled = true;
+    say('Fetching and evaluating…');
+    try {
+      state.now = await evaluateArtifact(artifactUrl());
+      state.rerun = null;
+      els.rerun.disabled = false;
+      els.pin.disabled = false;
+      els.copy.disabled = false;
+
+      // Persist AFTER reading prev, so 'L' always means the previous load.
+      writeStore(sessionStorage, KEY_PREV, state.now);
+
+      loadFrame();
+      render();
+      say('Ran ' + Object.keys(state.now.envelope.signals).length + ' signals in ' +
+          state.now.elapsedMs.toFixed(1) + 'ms.');
+    } catch (err) {
+      say('Failed: ' + err.message);
+    } finally {
+      els.run.disabled = false;
+    }
+  }
+
+  async function rerun() {
+    els.rerun.disabled = true;
+    say('Re-evaluating in the same page load…');
+    try {
+      state.rerun = await evaluateArtifact(artifactUrl());
+      render();
+      say('Re-run complete. Any R:diff other than ' + EXPECTED_UNSTABLE.join(', ') + ' is a bug.');
+    } catch (err) {
+      say('Re-run failed: ' + err.message);
+    } finally {
+      els.rerun.disabled = false;
+    }
+  }
+
+  function loadFrame() {
+    state.iframe = null;
+    els.frame.src = 'signals-iframe.html?artifact=' + encodeURIComponent(artifactUrl()) +
+      '&t=' + Date.now();
+  }
+
+  window.addEventListener('message', function (event) {
+    if (event.origin !== location.origin) return;
+    var data = event.data;
+    if (!data || data.source !== 'thumbmark-signal-iframe') return;
+    if (data.error) { say('iframe run failed: ' + data.error); return; }
+    state.iframe = { envelope: data.envelope, timings: data.timings, elapsedMs: data.elapsedMs };
+    render();
+  });
+
+  // ---- comparison ----------------------------------------------------------
+
+  var COMPARISONS = [
+    { key: 'rerun', letter: 'R', label: 're-run', of: function () { return state.rerun; } },
+    { key: 'prev', letter: 'L', label: 'reload', of: function () { return state.prev; } },
+    { key: 'iframe', letter: 'F', label: 'iframe', of: function () { return state.iframe; } },
+    { key: 'baseline', letter: 'B', label: 'baseline', of: function () { return state.baseline; } },
+    { key: 'imported', letter: 'C', label: 'imported', of: function () { return state.imported; } }
+  ];
+
+  // 'same' | 'diff' | 'absent' (one side lacks the key) | 'idle' (no such run)
+  function compare(signalName, other) {
+    if (!other || !other.envelope) return 'idle';
+    var mine = state.now.envelope.signals;
+    var theirs = other.envelope.signals || {};
+    var hereHas = Object.prototype.hasOwnProperty.call(mine, signalName);
+    var thereHas = Object.prototype.hasOwnProperty.call(theirs, signalName);
+    if (!hereHas || !thereHas) return 'absent';
+    return stable(mine[signalName]) === stable(theirs[signalName]) ? 'same' : 'diff';
+  }
+
+  function timingFor(run, signalName) {
+    if (!run || !run.timings) return null;
+    for (var i = 0; i < run.timings.length; i += 1) {
+      if (run.timings[i][0] === signalName) return run.timings[i];
+    }
+    return null;
+  }
+
+  // ---- rendering -----------------------------------------------------------
+
+  function render() {
+    if (!state.now) return;
+    els.metaCard.hidden = false;
+    els.scoreCard.hidden = false;
+    els.rowsCard.hidden = false;
+
+    var envelope = state.now.envelope;
+    var names = Object.keys(envelope.signals).sort();
+
+    // union of every name seen anywhere, so a signal MISSING here but present
+    // elsewhere is visible rather than silently skipped
+    var union = {};
+    names.forEach(function (n) { union[n] = true; });
+    COMPARISONS.forEach(function (comparison) {
+      var other = comparison.of();
+      if (other && other.envelope && other.envelope.signals) {
+        Object.keys(other.envelope.signals).forEach(function (n) { union[n] = true; });
+      }
+    });
+    var allNames = Object.keys(union).sort();
+
+    // meta
+    var timedOut = state.now.timings.filter(function (t) { return t[3] === 'timeout'; });
+    var errored = state.now.timings.filter(function (t) { return t[3] === 'error'; });
+    els.meta.innerHTML = '';
+    [
+      ['signals', String(names.length)],
+      ['payload_id', envelope.payload_id],
+      ['schema', String(envelope.schema)],
+      ['eval time', state.now.elapsedMs.toFixed(1) + ' ms'],
+      ['artifact', (state.now.bytes / 1024).toFixed(1) + ' KB'],
+      ['sha256', state.now.sha256 ? state.now.sha256.slice(0, 16) + '…' : 'n/a'],
+      ['timed out', String(timedOut.length)],
+      ['errored', String(errored.length)]
+    ].forEach(function (pair) {
+      var wrap = document.createElement('div');
+      var dt = document.createElement('dt'); dt.textContent = pair[0];
+      var dd = document.createElement('dd'); dd.textContent = pair[1];
+      wrap.appendChild(dt); wrap.appendChild(dd); els.meta.appendChild(wrap);
+    });
+
+    // scoreboard
+    els.scores.innerHTML = '';
+    COMPARISONS.forEach(function (comparison) {
+      var other = comparison.of();
+      var box = document.createElement('div');
+      box.className = 'score ' + (!other ? 'on-idle' : '');
+      var differing = 0, absent = 0;
+      if (other) {
+        allNames.forEach(function (n) {
+          var verdict = compare(n, other);
+          if (verdict === 'diff') differing += 1;
+          if (verdict === 'absent') absent += 1;
+        });
+        box.className = 'score ' + (differing > 0 ? 'on-diff' : 'on-same');
+      }
+      box.innerHTML = '<div class="k">' + comparison.letter + ' · ' + comparison.label + '</div>' +
+        '<div class="v">' + (other ? differing : '—') + '</div>' +
+        '<div class="n">' + (other ? (absent + ' missing on one side') : 'not captured yet') + '</div>';
+      els.scores.appendChild(box);
+    });
+    els.scoreNote.textContent = timedOut.length
+      ? 'Timed out here: ' + timedOut.map(function (t) { return t[0]; }).join(', ') +
+        ' — their keys are absent from the envelope, which is why "missing" is not the same as "differs".'
+      : 'No signal timed out in this run.';
+
+    // rows
+    els.rows.innerHTML = '';
+    allNames.forEach(function (name) {
+      var row = document.createElement('details');
+      row.className = 'row';
+
+      var summary = document.createElement('summary');
+      var label = document.createElement('span');
+      label.className = 'name';
+      label.textContent = name;
+      summary.appendChild(label);
+
+      var chips = document.createElement('span');
+      chips.className = 'chips';
+      COMPARISONS.forEach(function (comparison) {
+        var verdict = compare(name, comparison.of());
+        var chip = document.createElement('span');
+        chip.className = 'chip ' + verdict;
+        chip.textContent = comparison.letter;
+        chip.title = comparison.label + ': ' + verdict;
+        chips.appendChild(chip);
+      });
+      summary.appendChild(chips);
+
+      var timing = timingFor(state.now, name);
+      if (timing) {
+        var ms = document.createElement('span');
+        ms.className = 'ms';
+        ms.textContent = timing[1].toFixed(1) + 'ms' + (timing[3] === 'ok' ? '' : ' ' + timing[3]);
+        summary.appendChild(ms);
+      }
+      row.appendChild(summary);
+
+      var detail = document.createElement('div');
+      detail.className = 'detail';
+      var table = document.createElement('table');
+      var rowsHtml = ['<tr><th>this run</th><td>' + escapeHtml(present(state.now, name)) + '</td></tr>'];
+      COMPARISONS.forEach(function (comparison) {
+        var other = comparison.of();
+        if (!other) return;
+        var verdict = compare(name, other);
+        rowsHtml.push('<tr><th>' + comparison.label + '</th><td class="' +
+          (verdict === 'diff' ? 'd' : '') + '">' + escapeHtml(present(other, name)) + '</td></tr>');
+      });
+      table.innerHTML = rowsHtml.join('');
+      detail.appendChild(table);
+      row.appendChild(detail);
+      els.rows.appendChild(row);
+    });
+  }
+
+  function present(run, name) {
+    if (!run || !run.envelope || !run.envelope.signals) return '(no run)';
+    if (!Object.prototype.hasOwnProperty.call(run.envelope.signals, name)) return '(key absent)';
+    var value = run.envelope.signals[name];
+    var text = typeof value === 'string' ? value : JSON.stringify(value);
+    return text.length > 600 ? text.slice(0, 600) + '… (' + text.length + ' chars)' : text;
+  }
+
+  function escapeHtml(text) {
+    return String(text).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  // ---- transfer ------------------------------------------------------------
+
+  function exportPayload() {
+    return JSON.stringify({
+      kind: 'thumbmark-signal-run',
+      at: state.now.at,
+      ua: state.now.ua,
+      artifact: artifactUrl(),
+      payload_id: state.now.envelope.payload_id,
+      sha256: state.now.sha256,
+      envelope: state.now.envelope
+    }, null, 0);
+  }
+
+  els.copy.addEventListener('click', async function () {
+    var text = exportPayload();
+    try {
+      await navigator.clipboard.writeText(text);
+      say('Copied ' + (text.length / 1024).toFixed(1) + ' KB. Paste it into another browser or a private window.');
+    } catch (err) {
+      // Clipboard API needs a secure context and a user gesture; on some
+      // mobile browsers it silently refuses. Fall back to a selectable box
+      // rather than losing the run.
+      showTransferBox(text, 'Copy failed — select and copy manually:');
+    }
+  });
+
+  els.imp.addEventListener('click', async function () {
+    var text = null;
+    try { text = await navigator.clipboard.readText(); } catch (err) { text = null; }
+    if (!text) { showTransferBox('', 'Paste a copied run here, then press Import:', true); return; }
+    acceptImport(text);
+  });
+
+  function acceptImport(text) {
+    try {
+      var parsed = JSON.parse(text);
+      var run = parsed.envelope ? parsed : null;
+      if (!run || !run.envelope || !run.envelope.signals) throw new Error('not a signal run');
+      state.imported = run;
+      writeStore(sessionStorage, KEY_IMPORT, run);
+      render();
+      say('Imported a run from ' + (run.ua ? run.ua.slice(0, 60) : 'an unknown browser') +
+          ' (payload_id ' + run.envelope.payload_id + ').');
+    } catch (err) {
+      say('Import failed: ' + err.message);
+    }
+  }
+
+  function showTransferBox(value, label, isImport) {
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = '<h2>' + escapeHtml(label) + '</h2>';
+    var area = document.createElement('textarea');
+    area.value = value;
+    card.appendChild(area);
+    if (isImport) {
+      var go = document.createElement('button');
+      go.className = 'primary';
+      go.textContent = 'Import';
+      go.style.marginTop = '8px';
+      go.addEventListener('click', function () { acceptImport(area.value); card.remove(); });
+      card.appendChild(go);
+    }
+    els.status.parentNode.appendChild(card);
+    area.focus();
+    area.select();
+  }
+
+  els.pin.addEventListener('click', function () {
+    state.baseline = state.now;
+    writeStore(localStorage, KEY_BASE, state.now);
+    render();
+    say('Baseline pinned. It survives reloads, new tabs and restarts — move the window to another ' +
+        'monitor, or change your OS theme, then Run again and read the B column.');
+  });
+
+  els.clear.addEventListener('click', function () {
+    try { sessionStorage.removeItem(KEY_PREV); sessionStorage.removeItem(KEY_IMPORT); } catch (err) {}
+    try { localStorage.removeItem(KEY_BASE); } catch (err) {}
+    state.prev = null; state.baseline = null; state.imported = null;
+    render();
+    say('Cleared the stored previous run, baseline and import.');
+  });
+
+  // ---- boot ----------------------------------------------------------------
+
+  var params = new URLSearchParams(location.search);
+  els.url.value = params.get('artifact') || DEFAULT_ARTIFACT;
+
+  // Read the stored runs BEFORE the first run overwrites the previous one.
+  state.prev = readStore(sessionStorage, KEY_PREV);
+  state.baseline = readStore(localStorage, KEY_BASE);
+  state.imported = readStore(sessionStorage, KEY_IMPORT);
+
+  say(state.prev ? 'A previous run from this tab is stored — press Run to compare against it.'
+                 : 'Press Run to fetch and evaluate the payload.');
+
+  els.run.addEventListener('click', run);
+  els.rerun.addEventListener('click', rerun);
+})();
+</script>
+</body>
+</html>
